@@ -21,7 +21,10 @@ const PORT = process.env.PORT || 3000;
  */
 
 let row = db.prepare('SELECT * FROM server_configs').all()
-console.log(row)
+
+app.get('/', (_, res) => {
+  return res.send('Alliance Stats responding :)')
+})
 
 app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async function (req, res) {
   // Interaction type and data
