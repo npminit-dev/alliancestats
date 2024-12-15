@@ -45,3 +45,9 @@ export function getRandomEmoji() {
 export function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+export function formatString(str, length) {
+  str = str + ''
+  if(str.length > length) return str.slice(0, length) 
+  return str.padEnd(length, " ");
+}

@@ -14,6 +14,11 @@ const SET_ADMIN_ROLE_COMMAND = {
   ],
 };
 
+const GET_STARTED = {
+  name: 'getstarted',
+  description: 'Shows the bot installation instructions and commands info'
+}
+
 const LIST_CORPS_COMMAND = {
   name: 'listcorps',
   description: 'Get the list of all corporations',
@@ -28,6 +33,8 @@ const LIST_CORPS_COMMAND = {
         { name: 'Bonus', value: 'corpbonus' },
         { name: 'Level', value: 'corplevel' },
         { name: 'FS Level', value: 'fslevel' },
+        { name: 'Event score', value: 'event_score' },
+        { name: 'Member count', value: 'member_count' }
       ],
     },
     {
@@ -62,25 +69,25 @@ const ADD_CORP_COMMAND = {
   description: 'Add a new corporation to the list',
   options: [
     {
-      name: 'corpname',
+      name: 'corp_name',
       description: 'Name of the corporation (must be unique)',
       type: 3, // STRING
       required: true,
     },
     {
-      name: 'corplevel',
+      name: 'corp_level',
       description: 'Level of the corporation (1-21)',
       type: 4, // INTEGER
       required: true,
     },
     {
-      name: 'corpbonus',
+      name: 'corp_bonus',
       description: 'Bonus percentage (0-1000)',
       type: 4, // INTEGER
       required: true,
     },
     {
-      name: 'fslevel',
+      name: 'fs_level',
       description: 'FS level (1-20)',
       type: 4, // INTEGER
       required: true,
@@ -128,7 +135,7 @@ const DELETE_CORP_COMMAND = {
   type: 1,
   options: [
     {
-      name: 'corpname',
+      name: 'corp_name',
       description: 'The name of the corporation to delete',
       type: 3, // Tipo 3 es para strings
       required: true,
@@ -142,26 +149,26 @@ const EDIT_CORP_COMMAND = {
   type: 1,
   options: [
     {
-      name: 'corpname',
+      name: 'corp_to_edit',
       description: 'The name of the corporation to edit',
       type: 3, // Tipo 3 es para strings
       required: true,
     },
     {
-      name: 'corplevel',
-      description: 'The new level of the corporation',
+      name: 'level',
+      description: 'The new level of the corporation (1-21)',
       type: 4, // Tipo 4 es para enteros
       required: false,
     },
     {
-      name: 'corpbonus',
-      description: 'The new bonus of the corporation',
+      name: 'bonus',
+      description: 'The new bonus of the corporation (0-1000)',
       type: 4, // Tipo 4 es para enteros
       required: false,
     },
     {
-      name: 'fslevel',
-      description: 'The new FS level of the corporation',
+      name: 'fs_level',
+      description: 'The new FS level of the corporation (1-20)',
       type: 4, // Tipo 4 es para enteros
       required: false,
     },
@@ -178,15 +185,38 @@ const EDIT_CORP_COMMAND = {
       required: false,
     },
     {
+      name: 'member_count',
+      description: 'Set the corp members count (0-40)',
+      type: 4,
+      required: false
+    },
+    {
       name: 'open_closed',
       description: 'Set open/closed status',
       type: 3, // Tipo 3 es para strings
       required: false,
+      choices: [
+        { name: 'Open', value: 'open' },
+        { name: 'Closed', value: 'closed' },
+      ],
     },
+    {
+      name: 'event_score',
+      description: 'Set the corp event score',
+      type: 4,
+      required: false,
+    },
+    {
+      name: 'new_corp_name',
+      description: 'The new name for the corporation',
+      type: 3,
+      required: false
+    }
   ],
 };
 
 const ALL_COMMANDS = [
+  GET_STARTED,
   SET_ADMIN_ROLE_COMMAND, 
   LIST_CORPS_COMMAND, 
   ADD_CORP_COMMAND,

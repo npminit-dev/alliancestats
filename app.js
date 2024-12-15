@@ -7,9 +7,10 @@ import {
   MessageComponentTypes,
   ButtonStyleTypes,
 } from 'discord-interactions';
-import { getRandomEmoji } from './utils.js';
+import { formatString } from './utils.js';
 import { db } from './db/dbscripts.js'
-import { addCorp } from './crudfunctions.js';
+import { addCorp, deleteCorp, editCorp } from './crudfunctions.js';
+import { GET_STARTED } from './constants.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,6 +37,15 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
   if (type === InteractionType.APPLICATION_COMMAND) {
     const { name } = data;
 
+    if(name === 'getstarted') {
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          content: GET_STARTED
+        }
+      })
+    }
+
     if (name === 'setadminrole') {
       const serverId = req.body.guild_id;
       const member = req.body.member;
@@ -45,15 +55,13 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       }, {});
 
       if (!member || !member.roles) {
-        return res.status(403).send({
+        return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: 'You need to be a member with roles to perform this action.',
+            content: '`⚠️ You need to be a member with roles to perform this action.`',
           },
         });
       }
-
-      console.log('Permissions of the member:', member.permissions);
 
       // Verificar si el usuario tiene permisos de administrador
       if (!(member.permissions & 0x8)) { // El permiso de administrador tiene el valor 0x8
@@ -61,7 +69,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: 'You need to have administrator permissions to set the admin role.',
+            content: '`⚠️ You need to have administrator permissions to set the admin role.`',
           },
         });
       }
@@ -70,15 +78,14 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
 
       try {
         db.prepare(`
-        INSERT INTO server_configs (server_id, admin_role_id)
-        VALUES (?, ?)
+        INSERT INTO server_configs (server_id, admin_role_id) VALUES (?, ?)
         ON CONFLICT(server_id) DO UPDATE SET admin_role_id = excluded.admin_role_id;
       `).run(serverId, roleId);
         console.log('Admin role set successfully.');
-        return res.status(200).send({
+        return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: 'Admin role added successfully'
+            content: '`✔️ Admin role added successfully`'
           }
         })
       } catch (error) {
@@ -97,7 +104,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: '⚠️ Admin role has not been set for this server.',
+            content: '`⚠️ Admin role has not been set for this server.`',
           },
         });
       }
@@ -110,7 +117,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: '⛔ You do not have permission to perform this action.',
+            content: '`⛔ You do not have permission to perform this action.`',
           },
         });
       }
@@ -125,12 +132,12 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         const order = options.find(opt => opt.name === 'order')?.value || 'desc';
         const filter = options.find(opt => opt.name === 'filter')?.value;
 
-        const validColumns = ['corplevel', 'corpbonus', 'fslevel'];
+        const validColumns = ['corplevel', 'corpbonus', 'fslevel', 'event_score', 'member_count'];
         if (!validColumns.includes(sortBy)) {
           return res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: 'Invalid sort_by parameter. Valid options: corplevel, corpbonus, fslevel.',
+              content: '`🤔 Invalid sort_by parameter. Valid options: corplevel, corpbonus, fslevel, event_score, member_count.`',
             },
           });
         }
@@ -152,12 +159,18 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
 
         const formattedList = corporations.map(
           corp =>
-            `**${corp.corpname}** (Level: ${corp.corplevel}, Bonus: ${corp.corpbonus}%, FS Level: ${corp.fslevel}, Members: ${corp.member_count}, Status: ${corp.open_closed})`
+            `- ${formatString(corp.corpname,16)} - ${formatString(corp.corplevel,3)} - ${formatString(corp.corpbonus + '%',5)} - ${formatString(corp.fslevel, 2)} - ${formatString(corp.ws ? 'Ys' : 'No', 2)} - ${formatString(corp.rs ? 'Ys' : 'No', 2)} - ${formatString('  ' + corp.member_count, 7)} - ${formatString(corp.open_closed === 'open' ? 'Yes' : 'No', 4)} - ${formatString(corp.event_score, 8)} -`
         );
 
+        formattedList.unshift('-----------------------------------------------------------------------------')
+        formattedList.unshift('- Corporation name - Lvl - Bonus - FS - WS - RS - Members - Open - EvtScore -')
+        formattedList.unshift('-----------------------------------------------------------------------------')
+        formattedList.unshift('```---------------------------------------------------------------------------')
+
         const content = formattedList.length > 0
-          ? formattedList.join('\n')
-          : 'No corporations found with the given criteria.';
+          ? formattedList.join('\n').concat('\n-----------------------------------------------------------------------------```')
+          : '```- No corporations found with the given criteria. -```';
+        
 
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -167,10 +180,10 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         });
       } catch (error) {
         console.error('Error fetching corporations:', error);
-        return res.status(500).send({
+        return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: 'An error occurred while fetching corporations. Please try again later.',
+            content: '`💥 An error occurred while fetching corporations. Please try again later.`',
           },
         });
       }
@@ -187,142 +200,23 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         }
 
         // Aquí podrías agregar lógica similar para otros comandos (editcorp, deletecorp)
-        if (name === 'editcorp') {
-          const options = data.options.reduce((acc, option) => {
-            acc[option.name] = option.value;
-            return acc;
-          }, {});
-
-          const corpname = options.corpname;
-
-          if (!corpname) {
-            return res.send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: 'You must specify the corporation name to edit.',
-              },
-            });
-          }
-
-          // Obtener la corporación de la base de datos
-          const corp = db.prepare('SELECT * FROM corporations WHERE corpname = ?').get(corpname);
-
-          if (!corp) {
-            return res.send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: `❌ No corporation found with the name "${corpname}".`,
-              },
-            });
-          }
-
-          // Los valores de la corporación a editar
-          const {
-            corplevel,
-            corpbonus,
-            fslevel,
-            ws,
-            rs,
-            open_closed,
-          } = corp;
-
-          // Verifica si el usuario proporcionó nuevos valores
-          const updatedCorp = {
-            corplevel: options.corplevel || corplevel,
-            corpbonus: options.corpbonus || corpbonus,
-            fslevel: options.fslevel || fslevel,
-            ws: options.ws !== undefined ? options.ws : ws,
-            rs: options.rs !== undefined ? options.rs : rs,
-            open_closed: options.open_closed || open_closed,
-          };
-
-          // Actualizar la base de datos
-          try {
-            db.prepare(`
-            UPDATE corporations
-            SET corplevel = ?, corpbonus = ?, fslevel = ?, ws = ?, rs = ?, open_closed = ?
-            WHERE corpname = ?
-          `).run(
-              updatedCorp.corplevel,
-              updatedCorp.corpbonus,
-              updatedCorp.fslevel,
-              updatedCorp.ws ? 1 : 0,
-              updatedCorp.rs ? 1 : 0,
-              updatedCorp.open_closed,
-              corpname
-            );
-
-            return res.send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: `Corporation "${corpname}" updated successfully! 🎉`,
-              },
-            });
-          } catch (err) {
-            console.error('Error updating corporation:', err);
-            return res.status(500).send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: `❌ An error occurred while updating the corporation.`,
-              },
-            });
-          }
+        if(name === 'editcorp') {
+          editCorp(res, data)
         }
 
         if (name === 'deletecorp') {
-          const corpname = data.options.find(opt => opt.name === 'corpname')?.value;
-
-          if (!corpname) {
-            return res.send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: 'You must specify a corporation name to delete.',
-              },
-            });
-          }
-
-          // Verificar si la corporación existe en la base de datos
-          const corp = db.prepare('SELECT * FROM corporations WHERE corpname = ?').get(corpname);
-
-          if (!corp) {
-            return res.send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: `❌ No corporation found with the name "${corpname}".`,
-              },
-            });
-          }
-
-          // Eliminar la corporación de la base de datos
-          try {
-            db.prepare('DELETE FROM corporations WHERE corpname = ?').run(corpname);
-
-            return res.send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: `Corporation "${corpname}" deleted successfully! 🎉`,
-              },
-            });
-          } catch (err) {
-            console.error('Error deleting corporation:', err);
-            return res.status(500).send({
-              type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-              data: {
-                content: `❌ An error occurred while deleting the corporation.`,
-              },
-            });
-          }
+          deleteCorp(res, data)
         }
       });
     }
 
 
     console.error(`unknown command: ${name}`);
-    return res.status(400).json({ error: 'unknown command' });
+    return res.json({ error: 'unknown command' });
   }
 
   console.error('unknown interaction type', type);
-  return res.status(400).json({ error: 'unknown interaction type' });
+  return res.json({ error: 'unknown interaction type' });
 });
 
 app.listen(PORT, () => {
