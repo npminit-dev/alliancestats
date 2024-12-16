@@ -95,15 +95,15 @@ export function editCorp(res, data) {
 
     // Verifica si el usuario proporcionó nuevos valores
     const updatedCorp = {
-      corplevel: options.level || corplevel,
-      corpbonus: options.bonus || corpbonus,
-      fslevel: options.fs_level || fslevel,
+      corplevel: options.level ?? corplevel,
+      corpbonus: options.bonus ?? corpbonus,
+      fslevel: options.fs_level ?? fslevel,
       ws: options.ws !== undefined ? options.ws : ws,
       rs: options.rs !== undefined ? options.rs : rs,
-      open_closed: options.open_closed || open_closed,
-      event_score: options.event_score || event_score,
-      new_corp_name: options.new_corp_name || corpname,
-      member_count: options.member_count || member_count
+      open_closed: options.open_closed ?? open_closed,
+      event_score: options.event_score ?? event_score,
+      new_corp_name: options.new_corp_name ?? corpname,
+      member_count: options.member_count ?? member_count
     };
 
     // Actualizar la base de datos
